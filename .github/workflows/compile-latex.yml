@@ -18,7 +18,8 @@ jobs:
       - name: Compile latex doc
         uses: xu-cheng/latex-action@v3
         with:
-          root_file: proposal/main.tex
+          working_directory: proposal/
+          root_file: main.tex
 
       - name: Upload PDF Artifact
         uses: actions/upload-artifact@v4
