@@ -1,4 +1,4 @@
-name: Compile main.tex into Report.pdf
+name: Compile LaTeX
 
 on:
   push:
@@ -7,6 +7,9 @@ on:
   pull_request:
     branches:
       - main
+
+permissions:
+  contents: write
 
 jobs:
   build_latex:
@@ -18,11 +21,20 @@ jobs:
       - name: Compile latex doc
         uses: xu-cheng/latex-action@v3
         with:
-          working_directory: proposal/
           root_file: main.tex
+          working_directory: proposal/
 
-      - name: Upload PDF Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: compiled-pdf
-          path: main.pdf
+      - name: Commit and Push PDF
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@://github.com"
+          
+          # Force add the PDF in case *.pdf is in your .gitignore
+          git add -f proposal/main.pdf
+          
+          # Only commit and push if the PDF actually changed to prevent infinite loops
+          if git commit -m "chore: update compiled pdf [skip ci]"; then
+            git push origin HEAD:${{ github.head_ref || github.ref_name }}
+          else
+            echo "No changes to the PDF detected."
+          fi
