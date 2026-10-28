@@ -33,7 +33,7 @@
 \maketitle
 
 \begin{abstract}
-We propose a generative sequence model that composes four-part chorales in the style of Johann Sebastian Bach. Given a short musical prefix, represented as a sequence of discrete pitch tokens on a fixed time grid, the model predicts a probability distribution over the next token and generates the continuation autoregressively. Our primary model is a decoder-only Transformer trained with teacher forcing on the Bach chorales in the music21 corpus (approximately 370 pieces; TODO: confirm count). Because this dataset is small by deep learning standards, we apply key transposition as a domain-appropriate data augmentation, which increases the effective training set roughly twelvefold. Inspired by rule-based systems such as Sid Meier's CPU Bach, we additionally apply constrained decoding at generation time: candidate notes that violate basic rules of counterpoint, such as voice ranges and parallel fifths or octaves, are masked before sampling. We compare the Transformer against a first-order Markov chain and an LSTM baseline using held-out negative log-likelihood and the rate of counterpoint rule violations in generated music. This work concerns symbolic music generation, sequence modelling, and constrained decoding.
+We propose a generative sequence model that composes four-part chorales in the style of Johann Sebastian Bach. Given a short musical prefix, represented as a sequence of discrete pitch tokens on a fixed time grid, the model predicts a probability distribution over the next token and generates the continuation autoregressively. Our primary model is a decoder-only Transformer trained with teacher forcing on the Bach chorales in the music21 corpus which contains approximately 371 pieces. Because this dataset is small by deep learning standards, we apply key transposition as a domain-appropriate data augmentation, which increases the effective training set roughly twelvefold. Inspired by rule-based systems such as Sid Meier's CPU Bach, we additionally apply constrained decoding at generation time: candidate notes that violate basic rules of counterpoint, such as voice ranges and parallel fifths or octaves, are masked before sampling. We compare the Transformer against a first-order Markov chain and an LSTM baseline using held-out negative log-likelihood and the rate of counterpoint rule violations in generated music. This work concerns symbolic music generation, sequence modelling, and constrained decoding.
 \end{abstract}
 
 \section{Introduction}
@@ -60,13 +60,13 @@ A deep learning approach is reasonable here for three reasons. First, the task i
 
 \section{Data}
 
-\paragraph{Source.} We use the Bach chorales included in the music21 Python library~\cite{cuthbert2010music21}. Bach's compositions are in the public domain, and the music21 corpus is distributed for research and educational use, which avoids the licensing uncertainty of individually sequenced MIDI files from other websites (TODO: confirm music21 corpus license terms). As a possible extension, we may also use the two-part Inventions and three-part Sinfonias.
+\paragraph{Source.} We use the Bach chorales included in the music21 Python library~\cite{cuthbert2010music21}. Bach's compositions are in the public domain, and the music21 corpus and encodings are licensed for non-commerical use, which avoids the licensing uncertainty of individually sequenced MIDI files from other websites. As a possible extension, we may also use the two-part Inventions and three-part Sinfonias.
 
 \paragraph{Summary statistics.} Table~\ref{tab:stats} reports the key properties of the dataset, and Figure~\ref{fig:explore} shows the distribution of chorale lengths and of pitches in each voice. (TODO: fill in using a short music21 script, and add one or two sentences on what these statistics imply for the difficulty of the task, e.g.\ sequence length relative to model context size.)
 
 \begin{figure}[t]
   \centering
-  \fbox{\parbox[c][3.5cm][c]{0.9\linewidth}{\centering TODO: exploratory figure, e.g.\ (left) histogram of chorale lengths in sixteenth-note steps; (right) pitch distribution per voice.}}
+  \includegraphics[width=0.9\linewidth,keepaspectratio]{bach_chorale_distributions.png}
   \caption{Exploratory statistics of the Bach chorale dataset. Left: distribution of chorale lengths in sixteenth-note time steps. Right: distribution of MIDI pitches for the soprano, alto, tenor, and bass voices. (TODO: update caption to describe the final figure.)}
   \label{fig:explore}
 \end{figure}
@@ -79,11 +79,11 @@ A deep learning approach is reasonable here for three reasons. First, the task i
     \toprule
     Statistic & Value \\
     \midrule
-    Number of chorales & TODO \\
-    Total notes (all voices) & TODO \\
-    Mean / max length (sixteenth-note steps) & TODO / TODO \\
-    Pitch range: soprano, alto, tenor, bass & TODO \\
-    Major / minor key proportion & TODO \\
+    Number of chorales & 371 \\
+    Total notes (all voices) & 86311 \\ 
+    Mean / max length (sixteenth-note steps) & 217.44 / 772 \\
+    Pitch range: soprano, alto, tenor, bass & [$F_3$, $E_6$], [$F_3$, $C\sharp_6$], [$G_2$, $B_{-5}$], [$C_2$, $A_5$] \\
+    Major / minor key proportion & 52.6\% / 47.4\% \\
     Mean sequence length after tokenization & TODO \\
     \bottomrule
   \end{tabular}
@@ -125,7 +125,7 @@ A deep learning approach is reasonable here for three reasons. First, the task i
     \draw[arr] (tf) -- (soft);
     \draw[arr] (soft) -- (mask);
     \draw[arr] (mask) -- (sample);
-    \draw[arr] (sample.west) -| (tf.south);
+    \draw[arr] (sample.north) -- (tf.south);
   \end{tikzpicture}
   \caption{Overview of the proposed system. Chorales are converted into a single token sequence that interleaves the soprano, alto, tenor, and bass voices. A decoder-only Transformer predicts a distribution over the next token, a rule mask removes tokens that would break counterpoint rules, and the sampled token is appended to the input for the next step.}
   \label{fig:arch}
