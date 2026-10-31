@@ -62,12 +62,12 @@ A deep learning approach is reasonable here for three reasons. First, the task i
 
 \paragraph{Source.} We use the Bach chorales included in the music21 Python library~\cite{cuthbert2010music21}. Bach's compositions are in the public domain, and the music21 corpus and encodings are licensed for non-commerical use, which avoids the licensing uncertainty of individually sequenced MIDI files from other websites. As a possible extension, we may also use the two-part Inventions and three-part Sinfonias.
 
-\paragraph{Summary statistics.} Table~\ref{tab:stats} reports the key properties of the dataset, and Figure~\ref{fig:explore} shows the distribution of chorale lengths and of pitches in each voice. (TODO: fill in using a short music21 script, and add one or two sentences on what these statistics imply for the difficulty of the task, e.g.\ sequence length relative to model context size.)
+\paragraph{Summary statistics.} Table~\ref{tab:stats} reports the key properties of the dataset, and Figure~\ref{fig:explore} shows the distribution of chorale lengths and of pitches in each voice. The variation in chorale lengths is relevant to sequence modelling, as longer chorales would require larger model context windows to capture dependencies across the entire sequence. Additionally, the different pitch ranges of the four voices may contain voice specific characteristics that must be accounted for when learning musical structure.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=0.9\linewidth,keepaspectratio]{bach_chorale_distributions.png}
-  \caption{Exploratory statistics of the Bach chorale dataset. Left: distribution of chorale lengths in sixteenth-note time steps. Right: distribution of MIDI pitches for the soprano, alto, tenor, and bass voices. (TODO: update caption to describe the final figure.)}
+  \caption{Exploratory statistics of the Bach chorale dataset. Left: distribution of chorale lengths in sixteenth-note time steps. Right: stacked histogram of MIDI pitches for the four voices: soprano, alto, tenor, and bass.}
   \label{fig:explore}
 \end{figure}
 
@@ -79,11 +79,11 @@ A deep learning approach is reasonable here for three reasons. First, the task i
     \toprule
     Statistic & Value \\
     \midrule
-    Number of chorales & 371 \\
-    Total notes (all voices) & 86311 \\ 
-    Mean / max length (sixteenth-note steps) & 217.44 / 772 \\
-    Pitch range: soprano, alto, tenor, bass & [$F_3$, $E_6$], [$F_3$, $C\sharp_6$], [$G_2$, $B_{-5}$], [$C_2$, $A_5$] \\
-    Major / minor key proportion & 52.6\% / 47.4\% \\
+    Number of chorales & 347 \\
+    Total notes (all voices) & 80391 \\ 
+    Mean / max length (sixteenth-note steps) & 213.96 / 772 \\
+    Pitch range: soprano, alto, tenor, bass & [57, 81], [53, 74], [48, 69], [36, 64] \\
+    Major / minor key proportion & 49.9\% / 50.1\% \\
     Mean sequence length after tokenization & TODO \\
     \bottomrule
   \end{tabular}
@@ -91,7 +91,7 @@ A deep learning approach is reasonable here for three reasons. First, the task i
 
 \paragraph{Representation.} Each chorale is quantized to a grid of sixteenth-note time steps. At each step we record one token per voice in a fixed order (soprano, alto, tenor, bass). Each token is either a MIDI pitch, a \emph{hold} token indicating that the previous note continues, or a \emph{rest} token. The four voices are interleaved into a single sequence, so that a piece of $T$ time steps becomes a sequence of $4T$ tokens. The vocabulary therefore contains the pitches observed in the data plus the hold, rest, start, and end tokens (TODO: report final vocabulary size). This ordering means that when the model generates a bass note, the soprano, alto, and tenor notes at the same time step are already known, which allows the constraint checks described in Section~\ref{sec:model}.
 
-\paragraph{Cleaning.} We will discard chorales that do not contain exactly four voices and chorales whose note durations cannot be represented on the sixteenth-note grid, and we will report how many pieces each filter removes. (TODO: report counts.)
+\paragraph{Cleaning.} We will discard chorales that do not contain exactly four voices (20 chorales) and chorales whose note durations cannot be represented on the sixteenth-note grid (4 chorales), resulting in a total of 24 chorales being removed.
 
 \paragraph{Augmentation.} Because roughly 370 pieces is small for a Transformer, we transpose each training chorale to every key in which all voices remain within their observed ranges. Transposition preserves musical structure exactly, so it is an appropriate augmentation for this domain.
 
@@ -145,7 +145,7 @@ A deep learning approach is reasonable here for three reasons. First, the task i
 
 \section{Work Division}
 
-Work is divided by stage of the pipeline, so that each member owns one component and the handoffs between components are clearly defined. Table~\ref{tab:work} lists each member's responsibilities and estimated weekly time commitment. Each member also writes the report section describing their component, and a second member edits it. (TODO: adjust names and hours.)
+Work is divided by stage of the pipeline, so that each member owns one component and the handoffs between components are clearly defined. Table~\ref{tab:work} lists each member's responsibilities and estimated weekly time commitment. Each member also writes the report section describing their component, and a second member edits it.
 
 \begin{table}[t]
   \centering
@@ -158,22 +158,22 @@ Work is divided by stage of the pipeline, so that each member owns one component
     \midrule
     Alan & Token representation design; rule checker and constrained decoding; music-theory background; qualitative analysis of generated samples. & 6 & 5 & 5 & 4 \\
     Saurabh & Transformer implementation and training loop; overfitting a single chorale; hyperparameter tuning; training curves; parameter count and architecture figure. & 3 & 7 & 7 & 3 \\
-    Kamil & Data loading, cleaning, and tokenization; summary statistics; transposition augmentation; data split; README and code documentation. & 8 & 4 & 3 & 5 \\
-    Haris & Markov chain and LSTM baselines; evaluation scripts (likelihood, rule-violation rate, pitch-class distance); results tables; final report assembly. & 3 & 6 & 6 & 5 \\
+    Haris & Data loading, cleaning, and tokenization; summary statistics; transposition augmentation; data split; README and code documentation. & 8 & 4 & 3 & 5 \\
+    Kamil & Markov chain and LSTM baselines; evaluation scripts (likelihood, rule-violation rate, pitch-class distance); results tables; final report assembly. & 4 & 6 & 5 & 5 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\paragraph{Dependencies.} Alan and Member 3 agree on the token format jointly in the first two days, since every later component depends on it. Member 3 delivers a preliminary tokenized dataset by the end of week 1, so that the Transformer and baselines can begin training before cleaning is finalized. Saurabh and Member 4 share a single training and evaluation interface, so that all models are compared under identical conditions. If a component falls behind, the member responsible for the downstream component assists through pair programming.
+\paragraph{Dependencies.} Alan and Haris agree on the token format jointly in the first two days, since every later component depends on it. Member 3 delivers a preliminary tokenized dataset by the end of week 1, so that the Transformer and baselines can begin training before cleaning is finalized. Saurabh and Kamil share a single training and evaluation interface, so that all models are compared under identical conditions. If a component falls behind, the member responsible for the downstream component assists through pair programming.
 
-\paragraph{Collaboration.} The team meets weekly (TODO: day and time, e.g.\ Tuesdays 4--5 pm) to review progress against the timeline below, and coordinates between meetings through a group chat and a shared GitHub repository, with changes merged through pull requests reviewed by one other member.
+\paragraph{Collaboration.} The team meets weekly on Tuesday between 4 to 5pm to review progress against the timeline below, and coordinates between meetings through a group chat and a shared GitHub repository, with changes merged through pull requests reviewed by one other member.
 
 \paragraph{Timeline.}
-\textbf{Week 1:} data pipeline and statistics complete; Markov baseline trained; Transformer overfits a single chorale.
-\textbf{Week 2:} full Transformer and LSTM training; rule checker implemented.
-\textbf{Week 3:} hyperparameter tuning; constrained decoding integrated; evaluation run.
-\textbf{Week 4:} analysis, figures, README, and report writing.
-(TODO: align with actual course deadlines.)
+\textbf{Week 1} (Nov 3 - Nov 9): data pipeline and statistics complete; Markov baseline trained; Transformer overfits a single chorale.
+\textbf{Week 2} (Nov 10 - Nov 16): full Transformer and LSTM training; rule checker implemented.
+\textbf{Week 3} (Nov 17 - Nov 23): hyperparameter tuning; constrained decoding integrated; evaluation run.
+\textbf{Week 4} (Nov 24 - Nov 30): analysis, figures, README, and report writing.
+\textbf{Week 5} (Dec 1 - Dec 8): final review and submission.
 
 \bibliographystyle{plainnat}
 \bibliography{references}

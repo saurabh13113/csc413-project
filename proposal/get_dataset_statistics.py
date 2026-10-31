@@ -16,12 +16,42 @@ def get_stats():
 
     major_count = 0
     minor_count = 0
-
+    initial_chorale_count = 0
+    invalid_voices = 0
+    invalid_durations = 0
 
     for chorale in chorales:
+        initial_chorale_count += 1
         score = corpus.parse(chorale)
         duration = score.highestTime
-        chorale_lengths.append(round(duration * 4))
+        parts = score.parts
+
+
+        # Validate chorale
+        if len(parts) != 4:
+            invalid_voices += 1
+            continue
+
+        valid_durations = True
+
+        for part in parts:
+            for element in part.flatten().notesAndRests:
+                duration_steps = element.duration.quarterLength * 4
+
+                if not np.isclose(duration_steps, round(duration_steps)):
+                    valid_durations = False
+                    break
+
+            if not valid_durations:
+                break
+
+        if not valid_durations:
+            invalid_durations += 1
+            continue
+
+
+        steps = round(duration * 4)
+        chorale_lengths.append(steps)
 
         if score.analyze("key").mode == "major":
             major_count += 1
@@ -29,16 +59,15 @@ def get_stats():
             minor_count += 1
 
         parts = score.parts
-        if len(parts) >= 4:
-            for voice, part in zip(pitch_notes.keys(), parts[:4]):
-                for note in part.flatten().notes:
-                    if note.isNote:
-                        pitch_notes[voice].append(note.pitch.midi)
+        for voice, part in zip(pitch_notes.keys(), parts[:4]):
+            for note in part.flatten().notes:
+                if note.isNote:
+                    pitch_notes[voice].append(note.pitch.midi)
 
 
     pitch_ranges = {}
     for voice, pitches in pitch_notes.items():
-        pitch_ranges[voice] = (pitch.Pitch(min(pitches)).nameWithOctave, pitch.Pitch(max(pitches)).nameWithOctave)
+        pitch_ranges[voice] = (min(pitches), max(pitches))
 
 
     total_keys = major_count + minor_count
@@ -103,6 +132,10 @@ def get_stats():
     print(f"Total notes: {total_notes}")
     print(f"Mean chorale length: {mean_chorale_length:.2f}")
     print(f"Max chorale length: {max_chorale_length}")
+
+    print("Removed Chorales")
+    print("Incorrect number of voices:", invalid_voices)
+    print("Invalid durations:", invalid_durations)
 
     print("\nPitch ranges:")
     for voice, (low, high) in pitch_ranges.items():
