@@ -84,12 +84,12 @@ A deep learning approach is reasonable here for three reasons. First, the task i
     Mean / max length (sixteenth-note steps) & 213.96 / 772 \\
     Pitch range: soprano, alto, tenor, bass & [57, 81], [53, 74], [48, 69], [36, 64] \\
     Major / minor key proportion & 49.9\% / 50.1\% \\
-    Mean sequence length after tokenization & TODO \\
+    Mean sequence length after tokenization & 857.84 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-\paragraph{Representation.} Each chorale is quantized to a grid of sixteenth-note time steps. At each step we record one token per voice in a fixed order (soprano, alto, tenor, bass). Each token is either a MIDI pitch, a \emph{hold} token indicating that the previous note continues, or a \emph{rest} token. The four voices are interleaved into a single sequence, so that a piece of $T$ time steps becomes a sequence of $4T$ tokens. The vocabulary therefore contains the pitches observed in the data plus the hold, rest, start, and end tokens (TODO: report final vocabulary size). This ordering means that when the model generates a bass note, the soprano, alto, and tenor notes at the same time step are already known, which allows the constraint checks described in Section~\ref{sec:model}.
+\paragraph{Representation.} Each chorale is quantized to a grid of sixteenth-note time steps. At each step we record one token per voice in a fixed order (soprano, alto, tenor, bass). Each token is either a MIDI pitch, a \emph{hold} token indicating that the previous note continues, or a \emph{rest} token. The four voices are interleaved into a single sequence, so that a piece of $T$ time steps becomes a sequence of $4T$ tokens. The vocabulary therefore consists of the pitches observed in the data plus the hold, rest, start, and end tokens resulting in a vocabulary of size 50. This ordering means that when the model generates a bass note, the soprano, alto, and tenor notes at the same time step are already known, which allows the constraint checks described in Section~\ref{sec:model}.
 
 \paragraph{Cleaning.} We will discard chorales that do not contain exactly four voices (20 chorales) and chorales whose note durations cannot be represented on the sixteenth-note grid (4 chorales), resulting in a total of 24 chorales being removed.
 

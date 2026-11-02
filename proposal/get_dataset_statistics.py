@@ -19,6 +19,8 @@ def get_stats():
     initial_chorale_count = 0
     invalid_voices = 0
     invalid_durations = 0
+    vocabulary = {"HOLD", "REST", "START", "END"}
+    sequence_lengths = []
 
     for chorale in chorales:
         initial_chorale_count += 1
@@ -53,6 +55,36 @@ def get_stats():
         steps = round(duration * 4)
         chorale_lengths.append(steps)
 
+        voice_tokens = []
+        for part in parts[:4]:
+            tokens = ["REST"] * steps
+
+            for element in part.flatten().notesAndRests:
+                start = round(element.offset * 4)
+                duration_steps = round(element.duration.quarterLength * 4)
+                end = start + duration_steps
+
+                if element.isNote:
+                    tokens[start] = element.pitch.midi
+
+                    for t in range(start + 1, end):
+                        tokens[t] = "HOLD"
+
+                elif element.isRest:
+                    for t in range(start, end):
+                        tokens[t] = "REST"
+
+            voice_tokens.append(tokens)
+
+        sequence = ["START"]
+        for t in range(steps):
+            for voice in voice_tokens:
+                sequence.append(voice[t])
+
+        sequence.append("END")
+        vocabulary.update(sequence)
+        sequence_lengths.append(len(sequence))
+
         if score.analyze("key").mode == "major":
             major_count += 1
         else:
@@ -74,6 +106,9 @@ def get_stats():
     total_notes = sum(len(note_array) for note_array in pitch_notes.values())
     mean_chorale_length = np.mean(chorale_lengths)
     max_chorale_length = np.max(chorale_lengths)
+
+    vocabulary_size = len(vocabulary)
+    mean_sequence_length = np.mean(sequence_lengths)
 
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
@@ -132,6 +167,8 @@ def get_stats():
     print(f"Total notes: {total_notes}")
     print(f"Mean chorale length: {mean_chorale_length:.2f}")
     print(f"Max chorale length: {max_chorale_length}")
+    print(f"Vocabulary size: {vocabulary_size}")
+    print(f"Mean tokenized sequence length: {mean_sequence_length:.2f}")
 
     print("Removed Chorales")
     print("Incorrect number of voices:", invalid_voices)
