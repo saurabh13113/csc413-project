@@ -1,0 +1,24 @@
+filename,reason
+bach/bwv41.6,n_parts=9
+bach/bwv8.6,n_parts=5
+bach/bwv248.9-1,n_parts=8
+bach/bwv91.6,n_parts=7
+bach/bwv36.4-2,off_grid offset=5.75 quarterLength=0.125
+bach/bwv29.8,n_parts=8
+bach/bwv27.6,n_parts=5
+bach/bwv432,off_grid offset=14.75 quarterLength=0.125
+bach/bwv161.6,n_parts=5
+bach/bwv19.7,n_parts=8
+bach/bwv112.5,n_parts=7
+bach/bwv172.6,n_parts=5
+bach/bwv190.7,n_parts=15
+bach/bwv251,n_parts=6
+bach/bwv252,n_parts=6
+bach/bwv136.6,n_parts=5
+bach/bwv248.23-2,n_parts=8
+bach/bwv250,n_parts=6
+bach/bwv70.11,n_parts=7
+bach/bwv248.59-6,n_parts=5
+bach/bwv248.42-4,n_parts=12
+bach/bwv274,duplicate_of=bach/bwv62.6
+bach/bwv69.6,duplicate_of=bach/bwv69.6-a
