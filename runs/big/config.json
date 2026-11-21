@@ -1,0 +1,20 @@
+{
+  "name": "big",
+  "d_model": 384,
+  "layers": 8,
+  "heads": 6,
+  "d_ff": 1536,
+  "dropout": 0.2,
+  "max_len": 1024,
+  "batch_size": 8,
+  "lr": 0.0003,
+  "weight_decay": 0.01,
+  "epochs": 600,
+  "warmup": 300,
+  "augment_mode": "sample",
+  "eval_every": 5,
+  "overfit": null,
+  "seed": 0,
+  "params": 14621568,
+  "device": "cuda"
+}

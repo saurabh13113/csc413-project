@@ -3,3 +3,5 @@ data/processed/encoded.json
 __pycache__/
 *.egg-info/
 .pytest_cache/
+.venv/
+runs/*/*.pt

@@ -1,6 +1,101 @@
 # Rule-Constrained Transformer Generation of Bach-Style Four-Part Chorales
 
-CSC413 project. This README currently documents the data pipeline (`src/chorales/`).
+CSC413 project. A decoder-only Transformer generates four-part (soprano, alto, tenor, bass)
+chorales in the style of J.S. Bach, one token at a time, from a single sequence that
+interleaves the four voices on a 16th-note grid. At generation time a rule mask can forbid
+tokens that break counterpoint rules (constrained decoding).
+
+## Model (`src/chorales/model.py`)
+
+```mermaid
+flowchart LR
+    x["token x_i<br/>(51-token vocab)"] --> E["E_tok[x_i]"]
+    E --> S(("+"))
+    P["E_pos[i]"] --> S
+    V["E_voice[S/A/T/B]"] --> S
+    B["E_beat[16th position in bar]"] --> S
+    F["E_fermata[phrase end?]"] --> S
+    S --> D["dropout"] --> L["8 x pre-LN decoder block<br/>LN, causal multi-head self-attention, residual<br/>LN, GELU feed-forward, residual"]
+    L --> N["LayerNorm"] --> H["linear (tied to E_tok)"] --> SM["softmax over next token"]
+    SM --> M["generation only:<br/>grammar + rule mask, sample"]
+    M -. "append, repeat" .-> x
+```
+
+Forward pass for position i: the five embeddings are summed into a d = 384 vector, then passed
+through 8 blocks. Each block computes `h = h + MHA(LN(h))` with a causal mask (position i only
+attends to positions ≤ i), then `h = h + FFN(LN(h))` with `FFN(z) = W2 GELU(W1 z)`. A final
+LayerNorm and a linear layer, whose weight is shared with the token embedding, give 51 logits
+for the next token. Training uses teacher forcing and cross-entropy (`scripts/train.py`).
+
+### Parameters (final model `big`: d_model 384, 8 layers, 6 heads, d_ff 1536)
+
+| Component | Shape | Parameters |
+|---|---|---|
+| Token embedding (also the output layer, weights tied) | 51 × 384 | 19,584 |
+| Position embedding | 1024 × 384 | 393,216 |
+| Voice embedding (S, A, T, B, special) | 5 × 384 | 1,920 |
+| Beat-position embedding (0..23, special) | 25 × 384 | 9,600 |
+| Fermata embedding | 2 × 384 | 768 |
+| Per block: attention Q/K/V (384×1152 + 1152) | | 443,520 |
+| Per block: attention output (384×384 + 384) | | 147,840 |
+| Per block: FFN (384×1536 + 1536, 1536×384 + 384) | | 1,181,568 |
+| Per block: 2 LayerNorms | | 1,536 |
+| 8 blocks | 8 × 1,774,464 | 14,195,712 |
+| Final LayerNorm | | 768 |
+| **Total** | | **14,621,568** |
+
+97% of the parameters are in the Transformer blocks. `param_breakdown(model)` prints this split.
+
+## Training (`scripts/train.py`)
+
+```bash
+python scripts/train.py --name big --epochs 600 --d-model 384 --layers 8 --heads 6 --d-ff 1536 --dropout 0.2
+python scripts/sample.py runs/big/best.pt --n 5 --template bwv254   # MIDI to runs/big/samples/
+```
+
+Settings: AdamW (lr 3e-4, weight decay 0.01), 300-step linear warmup then cosine decay to 0,
+batch size 8, max 1,024 input tokens, gradient clipping at 1.0, mixed precision, 600 epochs
+of 262 chorales, each with one random allowed transposition per epoch (`augment_mode=sample`).
+The checkpoint with the lowest validation NLL is kept. Training takes about 10 minutes on a
+lab GPU.
+
+**Sanity check.** With dropout off, the 5M model memorises one chorale (`--overfit bwv269`)
+to NLL 0.0000 in about 100 epochs, and sampling from it reproduces bwv269 token for token.
+
+![Training curve](runs/big/curve.png)
+
+The training NLL is measured with dropout on, on transposed chorales, so it sits above the
+validation NLL for most of the run.
+
+### Hyperparameter tuning
+
+The configurations were compared by validation NLL (per token, nats), changing one or two
+settings at a time:
+
+| Run | Change from previous | Params | Best val NLL |
+|---|---|---|---|
+| base | 6 layers, d 256, 4 heads, dropout 0.1, 150 epochs | 5.0M | 0.685 |
+| long | 600 epochs | 5.0M | 0.508 |
+| long_lr | lr 6e-4 | 5.0M | 0.492 (overfits after epoch ~340) |
+| all_aug | every transposition each epoch (`all`), 100 epochs | 5.0M | 0.518 |
+| small | d 128, 4 layers | 0.94M | 0.543 |
+| mid_d02 | long_lr + dropout 0.2 | 5.0M | 0.474 |
+| **big** | d 384, 8 layers, 6 heads, dropout 0.2, lr 3e-4 | 14.6M | **0.461** |
+| big_d03 | dropout 0.3, 400 epochs | 14.6M | 0.520 (underfits) |
+
+The base run was stopped too early, since the learning rate reached 0 while the loss was still
+falling. With longer training, the higher learning rate began to overfit, and dropout 0.2 fixed
+that. Tripling the model size then gave a further 0.013, close to the noise level of the
+33-chorale validation set (about ±0.01 between evaluations).
+
+### Test result
+
+| Model | Val NLL | Test NLL |
+|---|---|---|
+| Transformer (`big`) | 0.461 | 0.525 |
+
+The test set was evaluated once, after the configuration was chosen. The gap from validation
+is expected, since the configuration and epoch were both selected on the small validation set.
 
 ## Data pipeline
 
