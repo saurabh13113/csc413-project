@@ -1,0 +1,10 @@
+[project]
+name = "chorales"
+version = "0.1.0"
+description = "Bach chorale data pipeline for CSC413"
+requires-python = ">=3.10"
+dependencies = ["music21", "torch", "numpy", "matplotlib"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
