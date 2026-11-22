@@ -97,6 +97,19 @@ that. Tripling the model size then gave a further 0.013, close to the noise leve
 The test set was evaluated once, after the configuration was chosen. The gap from validation
 is expected, since the configuration and epoch were both selected on the small validation set.
 
+Test results split by target token type (top-1 accuracy = the most probable token is Bach's):
+
+| Target tokens | Share | Test NLL | Top-1 accuracy |
+|---|---|---|---|
+| All | 100% | 0.525 | 84.7% |
+| `HOLD` (note continues) | 72% | 0.153 | 95.7% |
+| Pitch / `REST` / `<END>` (a new event) | 28% | 1.465 | 57.0% |
+
+`HOLD` tokens are easy, so the overall numbers flatter the model: always predicting `HOLD`
+would already score 72% accuracy. The new-event row is the meaningful one. There are about 47
+choices at each of those slots (uniform guessing is about 2%), and several notes are often
+musically valid, so top-1 accuracy understates the model.
+
 ## Data pipeline
 
 ### Build
