@@ -1,8 +1,8 @@
 """Train the chorale Transformer with teacher forcing.
 
 Usage:
-    python scripts/train.py --name base                     # full run on train, eval on val
-    python scripts/train.py --name overfit --overfit bwv269 --dropout 0 --epochs 300 --warmup 20
+    python scripts/train.py --name base --name transformer        # full run on train, eval on val
+    python scripts/train.py --name overfit --name lstm --overfit bwv269 --dropout 0 --epochs 300 --warmup 20
     python scripts/train.py --name small --d-model 128 --layers 4   # any hyperparameter is a flag
 
 Writes runs/<name>/: best.pt (lowest val NLL), history.json, curve.png, config.json.
@@ -23,7 +23,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from chorales.dataset import IGNORE_INDEX, ChoraleDataset, collate_fn  # noqa: E402
-from chorales.model import ChoraleTransformer, n_params, param_breakdown  # noqa: E402
+from models.factory import ModelFactory
 
 RUNS = Path(__file__).resolve().parents[1] / "runs"
 FEATURES = ("voice", "beat_pos", "fermata")
@@ -65,6 +65,7 @@ def plot(history, path):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--name", required=True)
+    ap.add_argument("--model", choices=["transformer", "lstm"], default="transformer")
     ap.add_argument("--d-model", type=int, default=256)
     ap.add_argument("--layers", type=int, default=6)
     ap.add_argument("--heads", type=int, default=4)
@@ -99,15 +100,23 @@ def main():
     train_dl = DataLoader(train_ds, args.batch_size, shuffle=True, collate_fn=collate_fn)
     val_dl = DataLoader(val_ds, args.batch_size, collate_fn=collate_fn)
 
-    model = ChoraleTransformer(args.d_model, args.layers, args.heads, args.d_ff, args.dropout, args.max_len).to(device)
-    print(f"params {n_params(model):,}", param_breakdown(model))
+    model_kwargs = {"d_model": args.d_model, "n_layers": args.layers, "dropout": args.dropout, "max_len": args.max_len}
+
+    if args.model == "transformer":
+        model_kwargs.update({"n_heads": args.heads, "d_ff": args.d_ff})
+
+    model = ModelFactory.create(args.model, **model_kwargs)
+    model.to_device(device)
+
+    print(f"params {model.n_params():,}")
+    print(model.param_breakdown())
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     total_steps = args.epochs * len(train_dl)
     sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: min((s + 1) / args.warmup,
                                               0.5 * (1 + math.cos(math.pi * min(s / total_steps, 1)))))
     scaler = torch.amp.GradScaler(enabled=device.type == "cuda")
 
-    config = {**vars(args), "params": n_params(model), "device": str(device)}
+    config = {**vars(args), "model_config": model.get_config(), "params": model.n_params(), "device": str(device)}
     (out / "config.json").write_text(json.dumps(config, indent=2))
     history, best = [], float("inf")
     t0 = time.time()
@@ -134,7 +143,7 @@ def main():
               f"lr {sched.get_last_lr()[0]:.2e}  {time.time() - t0:.0f}s", flush=True)
         if val < best:
             best = val
-            torch.save({"model": model.state_dict(), "config": config, "epoch": epoch, "val_nll": val}, out / "best.pt")
+            torch.save({"model_name": model.name, "model_state": model.state_dict(), "config": config, "epoch": epoch, "val_nll": val}, out / "best.pt")
         (out / "history.json").write_text(json.dumps(history, indent=2))
         plot(history, out / "curve.png")
     print(f"best val NLL {best:.4f} -> {out / 'best.pt'}")

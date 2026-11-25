@@ -1,5 +1,10 @@
 """Sample chorales from a trained checkpoint and write them as MIDI.
 
+Supports:
+    - Transformer
+    - LSTM
+    - Markov
+
 Usage:
     python scripts/sample.py runs/big/best.pt --n 5
     python scripts/sample.py runs/big/best.pt --n 5 --template bwv254 --temperature 0.9
@@ -16,16 +21,8 @@ import torch
 
 from chorales.encode import write_midi
 from chorales.load import PROCESSED_DIR
-from chorales.model import ChoraleTransformer, generate
+from models.base import ChoraleModel
 from chorales.vocab import HOLD, REST, is_pitch
-
-
-def load_model(path, device):
-    ckpt = torch.load(path, map_location=device, weights_only=True)
-    c = ckpt["config"]
-    model = ChoraleTransformer(c["d_model"], c["layers"], c["heads"], c["d_ff"], 0.0, c["max_len"])
-    model.load_state_dict(ckpt["model"])
-    return model.to(device).eval()
 
 
 def main():
@@ -39,7 +36,8 @@ def main():
     args = ap.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = load_model(args.checkpoint, device)
+    model = ChoraleModel.load(args.checkpoint, device=device)
+
     kw = {"time_signature": "4/4", "max_steps": args.steps}
     if args.template:
         e = json.loads((Path(PROCESSED_DIR) / "encoded.json").read_text())[args.template]
@@ -50,13 +48,20 @@ def main():
     out.mkdir(exist_ok=True)
     samples = []
     for i in range(args.n):
-        ids = generate(model, temperature=args.temperature, seed=args.seed + i, **kw)
+        ids = model.generate(temperature=args.temperature, seed=args.seed + i, **kw)
         samples.append(ids)
         path = write_midi(ids, out / f"sample_{i}.mid", kw["time_signature"])
         body = ids[1:-1]
         print(f"{path}  steps {len(body) // 4}  pitches {sum(map(is_pitch, body))}  "
               f"holds {body.count(HOLD)}  rests {body.count(REST)}")
-    (out / "samples.json").write_text(json.dumps({"args": vars(args), **kw, "samples": samples}))
+    results = {
+        "model": model.name,
+        "args": vars(args),
+        **kw,
+        "samples": samples,
+    }
+    results["args"]["checkpoint"] = str(args.checkpoint)
+    (out / "samples.json").write_text(json.dumps(results))
 
 
 if __name__ == "__main__":

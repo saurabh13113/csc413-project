@@ -1,7 +1,7 @@
 import torch
 
 from chorales.grammar import allowed_tokens
-from chorales.model import ChoraleTransformer, generate
+from models.transformer import ChoraleTransformer
 from chorales.vocab import END, START
 
 
@@ -20,7 +20,7 @@ def test_causal_and_generate():
     assert not torch.allclose(a[0, 10:], b[0, 10:])
 
     # generation longer than max_len exercises the sliding context window
-    ids = generate(m, max_steps=30, seed=0)
+    ids = m.generate(max_steps=30, seed=0)
     assert ids[0] == START and ids[-1] == END and (len(ids) - 2) % 4 == 0
     for i in range(1, len(ids)):
         assert ids[i] in allowed_tokens(ids[:i])
